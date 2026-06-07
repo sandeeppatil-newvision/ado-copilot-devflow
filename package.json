@@ -1,0 +1,120 @@
+{
+  "name": "ado-copilot-generator",
+  "displayName": "ADO Copilot Generator",
+  "description": "Generate code from Azure DevOps user stories using GitHub Copilot",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "adoCopilot.generateCode",
+        "title": "ADO Copilot: Generate Code from Work Item"
+      },
+      {
+        "command": "adoCopilot.configure",
+        "title": "ADO Copilot: Configure Credentials"
+      },
+      {
+        "command": "adoCopilot.openSettings",
+        "title": "ADO Copilot: Open Settings"
+      },
+      {
+        "command": "adoCopilot.clearCredentials",
+        "title": "ADO Copilot: Clear Saved Credentials"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "adocopilot.assistant",
+        "name": "ado",
+        "description": "Generate code from Azure DevOps work items",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "generate",
+            "description": "Generate code from ADO work item ID"
+          },
+          {
+            "name": "configure",
+            "description": "Configure ADO credentials"
+          }
+        ]
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "adoCopilot",
+          "title": "ADO Copilot",
+          "icon": "resources/activity-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "adoCopilot": [
+        {
+          "id": "adoCopilot.settingsView",
+          "name": "Settings",
+          "type": "webview"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "ADO Copilot Config",
+      "properties": {
+        "adoCopilot.organization": {
+          "type": "string",
+          "default": "",
+          "description": "[DEPRECATED] Azure DevOps Organization - Use chat interface or configure command instead",
+          "deprecationMessage": "Use @ado /configure or ADO Copilot: Configure Credentials command"
+        },
+        "adoCopilot.project": {
+          "type": "string",
+          "default": "",
+          "description": "[DEPRECATED] Azure DevOps Project - Use chat interface or configure command instead",
+          "deprecationMessage": "Use @ado /configure or ADO Copilot: Configure Credentials command"
+        },
+        "adoCopilot.pat": {
+          "type": "string",
+          "default": "",
+          "description": "[DEPRECATED] Azure DevOps PAT Token - Use chat interface or configure command instead",
+          "deprecationMessage": "Use @ado /configure or ADO Copilot: Configure Credentials command"
+        },
+        "adoCopilot.repositoryContext": {
+          "type": "string",
+          "default": "",
+          "description": "Brief description of what this repository contains (e.g., 'Customer Portal Angular App') - helps AI understand relevance"
+        },
+        "adoCopilot.useMultiStageGeneration": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable multi-stage code generation for higher quality (Analysis → Planning → Implementation → Verification)"
+        }
+      }
+    }
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^18.x",
+    "@types/node-fetch": "^2.6.13",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  }
+}
