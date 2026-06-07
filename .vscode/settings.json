@@ -1,0 +1,7 @@
+{
+  "adoCopilot.useMultiStageGeneration": true,
+  "adoCopilot.repositoryContext": "ADO Copilot Extension - VS Code extension for generating Angular code from Azure DevOps work items",
+  "adoCopilot.organization": "",
+  "adoCopilot.project": "",
+  "adoCopilot.pat": ""
+}
