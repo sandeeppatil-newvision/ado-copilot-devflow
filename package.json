@@ -1,7 +1,7 @@
 {
-  "name": "ado-copilot-generator",
-  "displayName": "ADO Copilot Generator",
-  "description": "Generate code from Azure DevOps user stories using GitHub Copilot",
+  "name": "synapse-code",
+  "displayName": "Synapse Code",
+  "description": "Where Azure DevOps meets GitHub Copilot — intelligently.",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.85.0"
@@ -32,8 +32,8 @@
     "chatParticipants": [
       {
         "id": "adocopilot.assistant",
-        "name": "ado",
-        "description": "Generate code from Azure DevOps work items",
+        "name": "synapse",
+        "description": "Azure DevOps + Copilot Chat: @synapse /implement #123",
         "isSticky": true,
         "commands": [
           {
@@ -51,7 +51,7 @@
       "activitybar": [
         {
           "id": "adoCopilot",
-          "title": "ADO Copilot",
+          "title": "Synapse Code",
           "icon": "resources/activity-icon.svg"
         }
       ]

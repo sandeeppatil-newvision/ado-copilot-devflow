@@ -1002,7 +1002,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   chatParticipant.iconPath = vscode.Uri.file(
-    context.asAbsolutePath("resources/activity-icon.svg"),
+    context.asAbsolutePath("resources/chat-icon.svg"),
   );
 
   // Register settings webview provider and open-settings command
