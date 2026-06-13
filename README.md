@@ -229,6 +229,74 @@ Token-Optimized Prompt   Orchestrator (4 stages)
                          retried up to 3× with exponential back-off)
 ```
 
+### Architecture Diagram
+
+```mermaid
+flowchart TD
+    User(["👤 User"])
+
+    subgraph EntryPoints["Entry Points"]
+        CMD["⌨️ Command Palette\nadoCopilot.*"]
+        CHAT["💬 @synapse\nChat Participant"]
+        PANEL["🖥️ Settings Panel\nActivity Bar Webview"]
+    end
+
+    subgraph CredMgmt["Credential Management"]
+        CM["🔐 CredentialManager\nVS Code Secrets API"]
+        SB["📊 Status Bar\n$(azure) ADO Copilot"]
+    end
+
+    subgraph CoreFlow["Core Generation Flow"]
+        PREWARM["🔥 Pre-warm Copilot Panel"]
+        ADO["📡 ADO REST API v7.0\ngetWorkItem · getTestCases\n+expand=relations"]
+        CA["🔍 ContextAnalyzer\nframework detection\nfile relevance scoring"]
+        CC["💾 ContextCache\n30-min TTL + FileSystemWatcher"]
+        SS["🎯 StrategySelector\nComplexity Score 0–10"]
+        PREVIEW["📋 Intelligent Preview Modal\nstrategy · confidence · relevant files · override"]
+    end
+
+    subgraph SinglePath["Single-Prompt Path"]
+        BP["📝 buildPrompt\nframework-aware · safety protocol"]
+        FPB["🏗️ FrameworkPromptBuilder\nAngular · React · Vue · Node.js"]
+    end
+
+    subgraph MultiPath["Multi-Stage Path — Orchestrator"]
+        S1["Stage 1\nAnalysis"]
+        S2["Stage 2\nPlanning 🔒"]
+        S3["Stage 3\nImplementation"]
+        S4["Stage 4\nVerification 🔒"]
+        TM["📊 TokenManager\nbudget tracking"]
+        QG["✅ QualityGates\nscore 0–10 per stage"]
+        S1 --> S2 --> S3 --> S4
+    end
+
+    ADOSVC(["☁️ Azure DevOps\ndev.azure.com"])
+    GHCP(["🟢 GitHub Copilot\nExtension"])
+    WIP["📋 WorkItemPicker\nWIQL search · filter · metadata"]
+    COPILOT["🤖 GitHub Copilot Chat\nauto-inject · 3× retry with back-off"]
+
+    User --> EntryPoints
+    CMD & CHAT & PANEL --> CM
+    CM <--> SB
+    EntryPoints -->|"credentials OK"| PREWARM
+    PREWARM --> ADO
+    ADO <-->|"REST API v7.0"| ADOSVC
+    ADO --> CA
+    CA <--> CC
+    CA --> SS
+    SS --> PREVIEW
+    PREVIEW -->|"multi-stage OFF"| SinglePath
+    PREVIEW -->|"multi-stage ON"| MultiPath
+    BP --> FPB
+    SinglePath --> COPILOT
+    S4 --> COPILOT
+    TM & QG -.->|"supports"| MultiPath
+    PANEL -->|"Browse Work Items"| WIP
+    WIP <-->|"WIQL query"| ADOSVC
+    WIP -->|"selected ID"| PREWARM
+    COPILOT <-->|"workbench.action.chat.open"| GHCP
+```
+
 ### Token Management
 
 - **Estimation:** ~4 characters = 1 token
