@@ -42,11 +42,18 @@ export class WorkItemPicker {
 
       this.panel.webview.onDidReceiveMessage(async (message) => {
         if (message.command === "search") {
-          const workItems = await this.searchWorkItems(message.query);
-          this.panel!.webview.postMessage({
-            type: "searchResults",
-            workItems,
-          });
+          try {
+            const workItems = await this.searchWorkItems(message.query);
+            this.panel!.webview.postMessage({
+              type: "searchResults",
+              workItems,
+            });
+          } catch (error) {
+            this.panel!.webview.postMessage({
+              type: "error",
+              message: error instanceof Error ? error.message : "Failed to load work items",
+            });
+          }
         } else if (message.command === "select") {
           selectedId = message.workItemId;
           this.panel?.dispose();
@@ -60,26 +67,7 @@ export class WorkItemPicker {
       this.panel.onDidDispose(() => {
         resolve(selectedId);
       });
-
-      // Load initial work items (last modified)
-      this.loadRecentWorkItems();
     });
-  }
-
-  private async loadRecentWorkItems() {
-    try {
-      const workItems = await this.fetchRecentWorkItems();
-      this.panel?.webview.postMessage({
-        type: "initialData",
-        workItems,
-      });
-    } catch (error) {
-      this.panel?.webview.postMessage({
-        type: "error",
-        message:
-          error instanceof Error ? error.message : "Failed to load work items",
-      });
-    }
   }
 
   private async searchWorkItems(query: string): Promise<WorkItem[]> {
@@ -87,122 +75,117 @@ export class WorkItemPicker {
       return this.fetchRecentWorkItems();
     }
 
-    try {
-      const wiql = `Select [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.AssignedTo], [System.Priority], [System.Severity] From WorkItems Where [System.TeamProject] = '${this.options.project}' AND ([System.Title] CONTAINS '${query}' OR [System.Id] = ${
-        /^\d+$/.test(query) ? query : "-1"
-      }) ORDER BY [System.Id] DESC`;
-
-      const response = await fetch(
-        `https://dev.azure.com/${this.options.org}/${this.options.project}/_apis/wit/wiql?api-version=7.0`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Basic ${Buffer.from(
-              `:${this.options.pat}`,
-            ).toString("base64")}`,
-          },
-          body: JSON.stringify({ query: wiql }),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to search work items");
-      }
-
-      const result = (await response.json()) as {
-        workItems: Array<{ id: number }>;
-      };
-      const ids = result.workItems.map((wi) => wi.id.toString());
-
-      return this.fetchWorkItemDetails(ids);
-    } catch (error) {
-      console.error("Search error:", error);
-      return [];
+    // Numeric ID — fetch directly, same pattern as getWorkItem() in extension.ts
+    if (/^\d+$/.test(query.trim())) {
+      return this.fetchWorkItemById(query.trim());
     }
+
+    // Text search — use WIQL to get matching IDs, then bulk-fetch details
+    const wiql = `Select [System.Id] From WorkItems Where [System.TeamProject] = '${this.options.project}' AND [System.Title] Contains '${query.trim().replace(/'/g, "''")}' ORDER BY [System.ChangedDate] DESC`;
+
+    const wiqlResponse = await fetch(
+      `https://dev.azure.com/${this.options.org}/${this.options.project}/_apis/wit/wiql?api-version=7.0`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${Buffer.from(`:${this.options.pat}`).toString("base64")}`,
+        },
+        body: JSON.stringify({ query: wiql, $top: 50 }),
+      },
+    );
+
+    if (!wiqlResponse.ok) {
+      const body = await wiqlResponse.text().catch(() => "");
+      throw new Error(`Search failed (HTTP ${wiqlResponse.status})${body ? ": " + body.slice(0, 120) : ""}`);
+    }
+
+    const wiqlResult = (await wiqlResponse.json()) as { workItems?: Array<{ id: number }> };
+    const ids = (wiqlResult.workItems ?? []).slice(0, 50).map((wi) => wi.id.toString());
+    return this.fetchWorkItemDetails(ids);
+  }
+
+  // Fetch a single work item by ID — mirrors getWorkItem() in extension.ts exactly
+  private async fetchWorkItemById(id: string): Promise<WorkItem[]> {
+    const response = await fetch(
+      `https://dev.azure.com/${this.options.org}/${this.options.project}/_apis/wit/workitems/${id}?api-version=7.0`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`:${this.options.pat}`).toString("base64")}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) return [];
+      throw new Error(`Work item not found (HTTP ${response.status})`);
+    }
+
+    const item = (await response.json()) as any;
+    return [this.mapWorkItem(item.id, item.fields)];
   }
 
   private async fetchRecentWorkItems(): Promise<WorkItem[]> {
-    try {
-      const wiql = `Select [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.AssignedTo], [System.Priority], [System.Severity] From WorkItems Where [System.TeamProject] = '${this.options.project}' ORDER BY [System.ChangedDate] DESC`;
+    const wiql = `Select [System.Id] From WorkItems Where [System.TeamProject] = '${this.options.project}' ORDER BY [System.ChangedDate] DESC`;
 
-      const response = await fetch(
-        `https://dev.azure.com/${this.options.org}/${this.options.project}/_apis/wit/wiql?api-version=7.0`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Basic ${Buffer.from(
-              `:${this.options.pat}`,
-            ).toString("base64")}`,
-          },
-          body: JSON.stringify({ query: wiql }),
+    const response = await fetch(
+      `https://dev.azure.com/${this.options.org}/${this.options.project}/_apis/wit/wiql?api-version=7.0`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${Buffer.from(`:${this.options.pat}`).toString("base64")}`,
         },
-      );
+        body: JSON.stringify({ query: wiql, $top: 50 }),
+      },
+    );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch recent work items");
-      }
-
-      const result = (await response.json()) as {
-        workItems: Array<{ id: number }>;
-      };
-      const ids = result.workItems.slice(0, 20).map((wi) => wi.id.toString());
-
-      return this.fetchWorkItemDetails(ids);
-    } catch (error) {
-      console.error("Fetch error:", error);
-      throw error;
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`Failed to load recent work items (HTTP ${response.status})${body ? ": " + body.slice(0, 120) : ""}`);
     }
+
+    const result = (await response.json()) as { workItems?: Array<{ id: number }> };
+    const ids = (result.workItems ?? []).slice(0, 50).map((wi) => wi.id.toString());
+    return this.fetchWorkItemDetails(ids);
   }
 
+  // Bulk-fetch work item details — mirrors getTestCases() in extension.ts:
+  // no `fields` filter, reads all fields, uses correct Microsoft.VSTS field names
   private async fetchWorkItemDetails(ids: string[]): Promise<WorkItem[]> {
     if (ids.length === 0) return [];
 
-    try {
-      const idsParam = ids.join(",");
-      const response = await fetch(
-        `https://dev.azure.com/${this.options.org}/${this.options.project}/_apis/wit/workitems?ids=${idsParam}&fields=System.Id,System.Title,System.WorkItemType,System.State,System.AssignedTo,System.Priority,System.Severity&api-version=7.0`,
-        {
-          headers: {
-            Authorization: `Basic ${Buffer.from(
-              `:${this.options.pat}`,
-            ).toString("base64")}`,
-          },
+    const response = await fetch(
+      `https://dev.azure.com/${this.options.org}/${this.options.project}/_apis/wit/workitems?ids=${ids.join(",")}&api-version=7.0`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`:${this.options.pat}`).toString("base64")}`,
         },
-      );
+      },
+    );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch work item details");
-      }
-
-      const result = (await response.json()) as {
-        value: Array<{
-          id: number;
-          fields: {
-            "System.Title": string;
-            "System.WorkItemType": string;
-            "System.State": string;
-            "System.AssignedTo"?: { displayName: string };
-            "System.Priority"?: number;
-            "System.Severity"?: string;
-          };
-        }>;
-      };
-
-      return result.value.map((item) => ({
-        id: item.id.toString(),
-        title: item.fields["System.Title"],
-        type: item.fields["System.WorkItemType"],
-        state: item.fields["System.State"],
-        assignedTo: item.fields["System.AssignedTo"]?.displayName,
-        priority: item.fields["System.Priority"]?.toString(),
-        severity: item.fields["System.Severity"],
-      }));
-    } catch (error) {
-      console.error("Detail fetch error:", error);
-      throw error;
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`Failed to fetch work item details (HTTP ${response.status})${body ? ": " + body.slice(0, 120) : ""}`);
     }
+
+    const result = (await response.json()) as { value: Array<any> };
+    return (result.value ?? []).map((item) =>
+      this.mapWorkItem(item.id, item.fields)
+    );
+  }
+
+  // Single mapping function — uses the same field names as extension.ts
+  private mapWorkItem(id: number, fields: any): WorkItem {
+    return {
+      id: id.toString(),
+      title: fields["System.Title"] ?? "",
+      type: fields["System.WorkItemType"] ?? "",
+      state: fields["System.State"] ?? "",
+      assignedTo: fields["System.AssignedTo"]?.displayName,
+      priority: fields["Microsoft.VSTS.Common.Priority"]?.toString(),
+      severity: fields["Microsoft.VSTS.Common.Severity"],
+    };
   }
 
   private getHtmlContent(): string {
