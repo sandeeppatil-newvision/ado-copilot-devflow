@@ -1,6 +1,6 @@
-# ADO Copilot Generator
+# Synapse Code
 
-**Turn Azure DevOps work items into production-ready code using GitHub Copilot — intelligent, framework-aware code generation inside VS Code.**
+**Where Azure DevOps meets GitHub Copilot — intelligently. Turn work items into production-ready code, directly inside VS Code.**
 
 > Built for the Microsoft Agents League Hackathon 2026
 
@@ -8,11 +8,11 @@
 
 ## Overview
 
-ADO Copilot Generator is a VS Code extension that bridges Azure DevOps and GitHub Copilot. You point it at a work item (user story, bug, feature, epic), and it orchestrates a structured, multi-stage generation process that produces framework-correct, test-covered, production-quality code — directly inside your editor.
+Synapse Code is a VS Code extension that bridges Azure DevOps and GitHub Copilot. You point it at a work item (user story, bug, feature, epic), and it orchestrates a structured, multi-stage generation process that produces framework-correct, test-covered, production-quality code — directly inside your editor.
 
 Instead of copy-pasting acceptance criteria into Copilot chat, this extension:
 
-- Fetches the full work item context from ADO (title, description, acceptance criteria, test cases, attachments)
+- Fetches the full work item context from ADO (title, description, acceptance criteria, test cases, attachments, discussion history)
 - Analyzes your workspace to detect framework, patterns, conventions, and relevant files
 - Selects an appropriate generation strategy based on task complexity
 - Injects a structured, token-optimized prompt into GitHub Copilot chat
@@ -32,7 +32,9 @@ The extension scores work item complexity (0–10) across multiple dimensions an
 | BALANCED | 3–5 min | Features, enhancements | 1 (after plan) |
 | THOROUGH | 5–10 min | Epics, complex features | 2 (strategic) |
 
-Complexity factors: work item type, description length, acceptance criteria count, test case count, number of relevant workspace files, and workspace confidence.
+Complexity factors: work item type, description length, acceptance criteria count, test case count, repro steps presence, number of relevant workspace files, and workspace confidence.
+
+An **Intelligent Preview modal** appears before generation, showing the recommended strategy, confidence score, relevant files found, and tech stack — with the option to override the strategy before proceeding.
 
 ### Framework-Aware Code Generation
 
@@ -79,9 +81,17 @@ Each stage has:
 
 A built-in panel lets you search, filter, and browse ADO work items with full metadata display — no need to leave VS Code or remember item IDs.
 
+### Redesigned Settings Panel
+
+The activity bar panel provides a streamlined UI with three sections:
+
+1. **Generate Code** — Enter a Work Item ID and click **Generate Code**, or click **Browse Work Items** to open the interactive picker. Both buttons are disabled until you are connected.
+2. **Azure DevOps Credentials** — Fill in Organization, Project, and PAT, then click **Connect**. Use **Test** to verify the connection without saving, **Reset** to discard unsaved edits, and **Disconnect** to clear stored credentials (with confirmation).
+3. **Options** — Toggle **Enable Multi-Stage Generation** to switch between single-prompt and the full 4-stage pipeline.
+
 ### Secure Credential Management
 
-Credentials are stored in the VS Code Secrets API (never in `settings.json`). The status bar shows live connection state, and the settings panel provides a rich UI for configuration and testing the connection.
+Credentials are stored in the VS Code Secrets API (never in `settings.json`). The status bar shows live connection state, and the settings panel provides a rich UI for configuration and testing the connection. On first connect, credentials are automatically migrated from legacy settings to the secure store.
 
 ---
 
@@ -111,7 +121,7 @@ Then install the `.vsix` or open the folder in VS Code with the extension host.
 
 **Option A — Activity Bar (recommended)**
 
-Click the ADO Copilot icon in the activity bar (left sidebar). Fill in:
+Click the Synapse Code icon in the activity bar (left sidebar). Fill in:
 - Azure DevOps Organization (e.g., `mycompany`)
 - Project name
 - Personal Access Token
@@ -129,12 +139,12 @@ ADO Copilot: Configure Credentials
 
 In GitHub Copilot chat, type:
 ```
-@ado /configure
+@synapse /configure
 ```
 
 ### 3. (Optional) Set Repository Context
 
-In the settings panel or VS Code settings, set `adoCopilot.repositoryContext` to a brief description of your repo (e.g., `"Customer Portal Angular App"`). This helps the AI understand your workspace without re-analyzing files every time.
+In the settings panel, set the **Repository Context** field to a brief description of your repo (e.g., `"Customer Portal Angular App"`). This helps the AI understand your workspace without re-analyzing files every time.
 
 ---
 
@@ -144,11 +154,11 @@ In the settings panel or VS Code settings, set `adoCopilot.repositoryContext` to
 
 **From the Activity Bar**
 
-1. Click the ADO Copilot icon
-2. Browse or search for a work item
-3. Click **Generate Code**
-4. Review the strategy recommendation and approve
-5. Copilot chat opens with the structured prompt — review and apply the generated code
+1. Click the Synapse Code icon
+2. Enter a Work Item ID and click **Generate Code**, or click **Browse Work Items** to search
+3. Review the strategy recommendation in the Intelligent Preview modal
+4. Optionally override the strategy (RAPID / BALANCED / THOROUGH)
+5. Click **Continue** — Copilot chat opens with the structured prompt
 
 **From the Command Palette**
 
@@ -156,27 +166,27 @@ In the settings panel or VS Code settings, set `adoCopilot.repositoryContext` to
 ADO Copilot: Generate Code from Work Item
 ```
 
-Enter a work item ID when prompted.
+The Work Item Picker opens so you can search and select an item.
 
 **From GitHub Copilot Chat**
 
 ```
-@ado 12345
+@synapse 12345
 ```
 or
 ```
-@ado /generate 12345
+@synapse /generate 12345
 ```
 
-The `@ado` chat participant fetches the work item, analyzes your workspace, and opens the full generation flow.
+The `@synapse` chat participant fetches the work item, analyzes your workspace, and opens the full generation flow.
 
 ### Chat Commands
 
 | Command | Description |
 |---------|-------------|
-| `@ado /generate {id}` | Generate code for work item ID |
-| `@ado /configure` | Open credential configuration |
-| `@ado {id}` | Shorthand — generate directly from an ID |
+| `@synapse /generate {id}` | Generate code for work item ID |
+| `@synapse /configure` | Open credential configuration |
+| `@synapse {id}` | Shorthand — generate directly from an ID |
 
 ---
 
@@ -187,7 +197,8 @@ Work Item ID
      │
      ▼
 ADO REST API v7.0  ──────────────────────────────────────────────────────►
-(title, description, acceptance criteria, test cases, attachments)         │
+(title, description, acceptance criteria, test cases, attachments,         │
+ discussion history)                                                        │
                                                                            │
 Workspace Analysis (ContextAnalyzer)                                       │
 (framework detection, pattern extraction, file relevance scoring)          │
@@ -196,8 +207,8 @@ Strategy Selection (StrategySelector)
 (complexity score → RAPID / BALANCED / THOROUGH)
                                                                            │
                                                                            ▼
-Token-Optimized Prompt (PromptTemplates + FrameworkPromptBuilder)
-(framework mission, safety protocol, quality requirements, workspace context)
+Intelligent Preview Modal
+(strategy, confidence, relevant files, tech stack, override option)
                                                                            │
                      ┌─────────────────────────────────────────────────────┘
                      │
@@ -206,15 +217,16 @@ Token-Optimized Prompt (PromptTemplates + FrameworkPromptBuilder)
           No               Yes
           │                │
           ▼                ▼
-    Single Prompt    Orchestrator (4 stages)
-    → Copilot Chat   Stage 1: Analysis
-                     Stage 2: Planning  ← approval gate
-                     Stage 3: Implementation
-                     Stage 4: Verification ← quality gate
-                          │
-                          ▼
-                    GitHub Copilot Chat
-                    (auto-injected prompt, auto-submitted)
+Token-Optimized Prompt   Orchestrator (4 stages)
+→ GitHub Copilot Chat    Stage 1: Analysis
+                         Stage 2: Planning  ← approval gate
+                         Stage 3: Implementation
+                         Stage 4: Verification ← quality gate
+                              │
+                              ▼
+                        GitHub Copilot Chat
+                        (auto-injected prompt, auto-submitted,
+                         retried up to 3× with exponential back-off)
 ```
 
 ### Token Management
@@ -255,7 +267,7 @@ Each stage validates output before proceeding. Example checks:
 | `adoCopilot.repositoryContext` | string | `""` | Brief repo description to help AI understand context |
 | `adoCopilot.useMultiStageGeneration` | boolean | `false` | Enable 4-stage Analysis → Planning → Implementation → Verification pipeline |
 
-> The `adoCopilot.organization`, `adoCopilot.project`, and `adoCopilot.pat` settings are deprecated. Use the settings panel or `@ado /configure` instead.
+> The `adoCopilot.organization`, `adoCopilot.project`, and `adoCopilot.pat` settings are deprecated. Use the settings panel or `@synapse /configure` instead. Existing values are automatically migrated to the VS Code Secrets store on first use.
 
 ---
 
@@ -263,7 +275,7 @@ Each stage validates output before proceeding. Example checks:
 
 ```
 src/
-├── extension.ts          # Entry point — commands, chat participant, settings webview, credential management
+├── extension.ts          # Entry point — commands, chat participant (@synapse), settings webview, credential management
 ├── orchestrator.ts       # Multi-stage generation pipeline with token tracking and quality gates
 ├── context-analyzer.ts   # Workspace analysis — tech stack, patterns, relevance scoring, conventions
 ├── context-cache.ts      # 30-min TTL cache for workspace analysis with file-watcher invalidation
@@ -274,7 +286,8 @@ src/
 ├── quality-gates.ts      # Stage-level quality validation, scoring, and recommendations
 └── work-item-picker.ts   # Interactive ADO work item browser with search and metadata display
 resources/
-└── activity-icon.svg     # Activity bar icon
+├── activity-icon.svg     # Activity bar icon
+└── chat-icon.svg         # Chat participant icon
 ```
 
 ---
@@ -299,11 +312,13 @@ Open the project in VS Code and press `F5` to launch the Extension Development H
 ## Architecture Highlights
 
 - **No custom chat UI** — generation is injected directly into GitHub Copilot chat, keeping the familiar interface and Copilot's full reasoning capability
-- **Secrets API** — PAT tokens are never stored in `settings.json`; always encrypted via VS Code's native secrets store
+- **Secrets API** — PAT tokens are never stored in `settings.json`; always encrypted via VS Code's native secrets store, with automatic migration from legacy settings
+- **Chat panel pre-warming** — the Copilot chat panel is opened immediately when generation starts (before any async ADO/workspace work), giving it time to fully initialize and eliminating cold-start failures
+- **Retry with back-off** — Copilot chat prompt injection retries up to 3 times (0 ms → 500 ms → 1,000 ms) with a plain-string fallback to handle edge cases
+- **Intelligent Preview modal** — before any code is generated, users see the recommended strategy, confidence score, relevant files, and tech stack, with the ability to override the strategy
 - **Prompt compression** — sections are sorted by priority and dropped gracefully when token budgets are exceeded, never truncating critical instructions mid-sentence
 - **Cache invalidation** — a `FileSystemWatcher` monitors the workspace for changes and invalidates the context cache automatically, ensuring stale patterns are never injected
 - **WIQL queries** — work item search uses the Azure DevOps Query Language for flexible, server-side filtering
-- **Retry logic** — Copilot chat injection retries up to 3 times with exponential backoff to handle cold-start delays
 
 ---
 
